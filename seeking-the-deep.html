@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -50,6 +50,21 @@ h2 { font-size: 16px; color: #8bd; }
 .btn.buy { min-width: 64px; padding: 4px 8px; font-size: 11px; }
 
 #screen-title p { color: #689; font-size: 13px; text-align: center; }
+
+#lang-switch { display: flex; gap: 6px; margin-top: 2px; }
+#lang-switch .lang-btn {
+  background: #0d1f33;
+  color: #8ab;
+  border: 1px solid #2a5080;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: 0.2s;
+}
+#lang-switch .lang-btn:hover { background: #153050; color: #def; }
+#lang-switch .lang-btn.active { border-color: #4af; color: #4af; }
 
 /* Game Layout */
 #game-layout { display: flex; gap: 8px; align-items: flex-start; width: 100%; }
@@ -159,10 +174,14 @@ canvas {
 
   <div id="screen-title" class="screen active">
     <h1>SEEKING<br>THE DEEP</h1>
-    <p>Пошаговый подводный rogue-lite</p>
-    <button class="btn" id="btn-new-game">Новое погружение</button>
-    <button class="btn" id="btn-shop">Магазин</button>
-    <p style="font-size:10px;color:#446;margin-top:4px">WASD/Стрелки — движение<br>Пробел — ждать | 1–5 — предмет</p>
+    <p id="lbl-subtitle"></p>
+    <div id="lang-switch">
+      <button class="lang-btn active" id="btn-lang-en">EN</button>
+      <button class="lang-btn" id="btn-lang-ru">RU</button>
+    </div>
+    <button class="btn" id="btn-new-game"></button>
+    <button class="btn" id="btn-shop"></button>
+    <p id="lbl-help" style="font-size:10px;color:#446;margin-top:4px"></p>
   </div>
 
   <div id="screen-game" class="screen">
@@ -178,7 +197,7 @@ canvas {
       </div>
       <div id="game-right">
         <div id="inv-panel">
-          <div class="title">Инвентарь</div>
+          <div class="title" id="lbl-inv-title"></div>
           <div id="inv-slots"></div>
         </div>
         <div id="msg-log"></div>
@@ -194,19 +213,19 @@ canvas {
   </div>
 
   <div id="screen-death" class="screen">
-    <h1>ВЫ ПОГИБЛИ</h1>
+    <h1 id="lbl-death-title"></h1>
     <div id="death-stats"></div>
-    <button class="btn" id="btn-death-shop">Магазин</button>
-    <button class="btn" id="btn-death-retry">Новое погружение</button>
-    <button class="btn" id="btn-death-title">Главное меню</button>
+    <button class="btn" id="btn-death-shop"></button>
+    <button class="btn" id="btn-death-retry"></button>
+    <button class="btn" id="btn-death-title"></button>
   </div>
 
   <div id="screen-shop" class="screen">
-    <h1>МАГАЗИН</h1>
+    <h1 id="lbl-shop-title"></h1>
     <div style="color:#ff4;font-size:15px" id="shop-pearls"></div>
     <div id="shop-upgrades"></div>
-    <button class="btn" id="btn-shop-dive">Новое погружение</button>
-    <button class="btn" id="btn-shop-back">Назад</button>
+    <button class="btn" id="btn-shop-dive"></button>
+    <button class="btn" id="btn-shop-back"></button>
   </div>
 
 </div>
@@ -220,21 +239,138 @@ const MAX_INV = 5;
 const META_KEY = 'std_meta_v1';
 const DIRS = [[0,-1],[0,1],[-1,0],[1,0]];
 const ALL_DIRS = [[0,-1],[0,1],[-1,0],[1,0],[0,0]];
+const LANG_KEY = 'std_lang';
+
+const LOC = {
+  en: {
+    title: { subtitle: 'Turn-based underwater rogue-lite', help: 'WASD/Arrows — move / Space — wait | 1–5 — item' },
+    btn: { newGame: 'New Dive', shop: 'Shop', back: 'Back', mainMenu: 'Main Menu', buy: 'Buy' },
+    death: { title: 'YOU DIED', depth: 'Depth', kills: 'Enemies killed', pearls: 'Pearls collected', total: 'Total pearls', bonus: '+{0} total' },
+    shop: { title: 'SHOP', pearls: 'Pearls: {0}', bought: 'Bought', not: '--' },
+    panel: { inventory: 'Inventory', empty: 'empty' },
+    stat: { depth: 'Dp', pearl: 'Pearls' },
+    enemy: {
+      jellyfish: 'Jellyfish', jellyfishLtr: 'J',
+      angler: 'Angler', anglerLtr: 'A',
+      squid: 'Squid', squidLtr: 'S',
+      horror: 'Abyssal Horror', horrorLtr: 'H'
+    },
+    item: {
+      pearl: 'Pearl', airTank: 'O₂ Tank', medkit: 'Medkit', harpoon: 'Harpoon', glowStone: 'Glow Stone'
+    },
+    upgrade: {
+      hp: 'HP +5', oxygen: 'O₂ +20', attack: 'Attack +2', light: 'Light +1',
+      tank: 'Start O₂ Tank', med: 'Start Medkit'
+    },
+    updesc: { lvl: 'Lv.{0}', bought: 'Bought' },
+    msg: {
+      wall: 'A wall blocks your way.',
+      playerAttack: 'You attack {0} (-{1}).',
+      killed: '{0} destroyed!',
+      foundPearl: 'Found a pearl!',
+      pickedPearl: 'Picked up a pearl.',
+      harpoonBoost: 'Harpoon +{0} attack!',
+      lightBoost: 'Light +{0} radius!',
+      pickedItem: 'Picked up: {0}',
+      invFull: 'Inventory is full!',
+      airPocket: 'Air pocket! +25 O₂',
+      enemyAttack: '{0} attacks you (-{1})!',
+      enemyBump: '{0} grazes you (-{1})!',
+      enemyCrash: '{0} crashes into you (-{1})!',
+      noOxygen: 'Out of oxygen! -1 HP',
+      descent: 'Descending to depth {0}... (+5 HP, +30 O₂)',
+      usedHP: 'Used: {0} (+{1} HP)',
+      usedO2: 'Used: {0} (+{1} O₂)'
+    }
+  },
+  ru: {
+    title: { subtitle: 'Пошаговый подводный rogue-lite', help: 'WASD/Стрелки — движение / Пробел — ждать | 1–5 — предмет' },
+    btn: { newGame: 'Новое погружение', shop: 'Магазин', back: 'Назад', mainMenu: 'Главное меню', buy: 'Купить' },
+    death: { title: 'ВЫ ПОГИБЛИ', depth: 'Глубина', kills: 'Убито врагов', pearls: 'Собрано жемчуга', total: 'Всего жемчуга', bonus: '+{0} всего' },
+    shop: { title: 'МАГАЗИН', pearls: 'Жемчуг: {0}', bought: 'Куплено', not: 'Нет' },
+    panel: { inventory: 'Инвентарь', empty: 'пусто' },
+    stat: { depth: 'Глуб.', pearl: 'Жемчуг' },
+    enemy: {
+      jellyfish: 'Медуза', jellyfishLtr: 'М',
+      angler: 'Удильщик', anglerLtr: 'У',
+      squid: 'Кальмар', squidLtr: 'К',
+      horror: 'Глуб.ужас', horrorLtr: 'Г'
+    },
+    item: {
+      pearl: 'Жемчуг', airTank: 'Баллон O₂', medkit: 'Аптечка', harpoon: 'Гарпун', glowStone: 'Свет.камень'
+    },
+    upgrade: {
+      hp: 'HP +5', oxygen: 'O₂ +20', attack: 'Атака +2', light: 'Свет +1',
+      tank: 'Старт. баллон O₂', med: 'Старт. аптечка'
+    },
+    updesc: { lvl: 'Ур.{0}', bought: 'Куплено' },
+    msg: {
+      wall: 'Стена преграждает путь.',
+      playerAttack: 'Вы атакуете {0} (-{1}).',
+      killed: '{0} уничтожен!',
+      foundPearl: 'Найден жемчуг!',
+      pickedPearl: 'Подобран жемчуг.',
+      harpoonBoost: 'Гарпун +{0} атаки!',
+      lightBoost: 'Свет +{0} радиуса!',
+      pickedItem: 'Подобран предмет: {0}',
+      invFull: 'Инвентарь полон!',
+      airPocket: 'Воздушный карман! +25 O₂',
+      enemyAttack: '{0} атакует вас (-{1})!',
+      enemyBump: '{0} задевает вас (-{1})!',
+      enemyCrash: '{0} врезается в вас (-{1})!',
+      noOxygen: 'Нехватка кислорода! -1 HP',
+      descent: 'Спуск на глубину {0}... (+5 HP, +30 O₂)',
+      usedHP: 'Использовано: {0} (+{1} HP)',
+      usedO2: 'Использовано: {0} (+{1} O₂)'
+    }
+  }
+};
+
+let lang;
+function initLang() { try { lang = localStorage.getItem(LANG_KEY) || 'en'; if (!LOC[lang]) lang = 'en'; } catch { lang = 'en'; } }
+function L(key, a, b) {
+  const parts = key.split('.');
+  let s = LOC[lang] || LOC.en;
+  for (const p of parts) { if (s && typeof s === 'object') s = s[p]; else { s = undefined; break; } }
+  if (typeof s !== 'string' && lang !== 'en') { s = LOC.en; for (const p of parts) { if (s && typeof s === 'object') s = s[p]; else { s = undefined; break; } } }
+  const str = typeof s === 'string' ? s : key;
+  return typeof a !== 'undefined' ? str.replace(/\{0\}/g, a).replace(/\{1\}/g, b !== undefined ? b : a) : str;
+}
+function setLang(l) { lang = l; localStorage.setItem(LANG_KEY, l); applyLang(); if (G && G.screen === 'game') updateUI(); }
+function applyLang() {
+  document.documentElement.lang = lang;
+  const e = (id) => document.getElementById(id);
+  const t = (id, key) => { const el = e(id); if (el) { if (el.tagName === 'INPUT' || el.tagName === 'BUTTON') el.textContent = L(key); else el.textContent = L(key); } };
+  t('lbl-subtitle', 'title.subtitle'); t('lbl-help', 'title.help');
+  t('btn-new-game', 'btn.newGame'); t('btn-shop', 'btn.shop');
+  t('lbl-inv-title', 'panel.inventory');
+  t('lbl-death-title', 'death.title'); t('btn-death-shop', 'btn.shop');
+  t('btn-death-retry', 'btn.newGame'); t('btn-death-title', 'btn.mainMenu');
+  t('lbl-shop-title', 'shop.title'); t('btn-shop-dive', 'btn.newGame');
+  t('btn-shop-back', 'btn.back'); t('btn-lang-en', 'EN'); t('btn-lang-ru', 'RU');
+  if (e('btn-lang-en')) e('btn-lang-en').style.borderColor = lang === 'en' ? '#4af' : '#2a5080';
+  if (e('btn-lang-ru')) e('btn-lang-ru').style.borderColor = lang === 'ru' ? '#4af' : '#2a5080';
+  if (G && G.screen === 'shop') refreshShop();
+}
+initLang();
+
+const ENAME = { jellyfish: 'enemy.jellyfish', angler: 'enemy.angler', squid: 'enemy.squid', horror: 'enemy.horror' };
+const INAME = { pearl: 'item.pearl', airTank: 'item.airTank', medkit: 'item.medkit', harpoon: 'item.harpoon', glowStone: 'item.glowStone' };
 
 const ECONF = {
-  jellyfish: { name:'Медуза', hp:8, atk:3, col:'#f6a', ltr:'М', vis:3 },
-  angler:    { name:'Удильщик', hp:15, atk:6, col:'#f80', ltr:'У', vis:6 },
-  squid:     { name:'Кальмар', hp:25, atk:10, col:'#c44', ltr:'К', vis:4 },
-  horror:    { name:'Глуб.ужас', hp:40, atk:15, col:'#a4f', ltr:'Г', vis:8 },
+  jellyfish: { hp:8, atk:3, col:'#f6a', vis:3 },
+  angler:    { hp:15, atk:6, col:'#f80', vis:6 },
+  squid:     { hp:25, atk:10, col:'#c44', vis:4 },
+  horror:    { hp:40, atk:15, col:'#a4f', vis:8 },
 };
 const E_POOL = ['jellyfish','jellyfish','angler','angler','squid','horror'];
 
 const ICONF = {
-  pearl:     { name:'Жемчуг', col:'#fff', auto:true, isCurr:true },
-  airTank:   { name:'Баллон O₂', col:'#4cf', auto:false, use:{oxygen:30} },
-  medkit:    { name:'Аптечка', col:'#f44', auto:false, use:{hp:10} },
-  harpoon:   { name:'Гарпун', col:'#ccc', auto:true, eff:{attack:3} },
-  glowStone: { name:'Свет.камень', col:'#ff4', auto:true, eff:{light:2} },
+  pearl:     { col:'#fff', auto:true, isCurr:true },
+  airTank:   { col:'#4cf', auto:false, use:{oxygen:30} },
+  medkit:    { col:'#f44', auto:false, use:{hp:10} },
+  harpoon:   { col:'#ccc', auto:true, eff:{attack:3} },
+  glowStone: { col:'#ff4', auto:true, eff:{light:2} },
 };
 
 const canvas = $('gc');
@@ -500,6 +636,7 @@ function startGame() {
   generateFloor();
   screen('screen-game');
   resizeCanvas();
+  updateUI();
   render();
 }
 
@@ -538,19 +675,19 @@ function processTurn(dx, dy) {
   }
 
   if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) return;
-  if (G.map[ny][nx] === T_WALL) { addMsg('Стена преграждает путь.'); return; }
+  if (G.map[ny][nx] === T_WALL) { addMsg(L('msg.wall')); return; }
 
   const enemy = enemyAt(nx, ny);
   if (enemy) {
     enemy.hp -= p.attack;
-    addMsg(`Вы атакуете ${ECONF[enemy.type].name} (-${p.attack}).`, 'danger');
+    addMsg(L('msg.playerAttack', L(ENAME[enemy.type]), p.attack), 'danger');
     if (enemy.hp <= 0) {
       G.run.kills++;
       G.enemies = G.enemies.filter(e => e !== enemy);
-      addMsg(`${ECONF[enemy.type].name} уничтожен!`, 'loot');
+      addMsg(L('msg.killed', L(ENAME[enemy.type])), 'loot');
       if (Math.random() < 0.5) {
         G.run.pearls++;
-        addMsg('Найден жемчуг!', 'loot');
+        addMsg(L('msg.foundPearl'), 'loot');
       }
     }
     G.player.oxygen = Math.max(0, G.player.oxygen - 1);
@@ -571,17 +708,17 @@ function processTurn(dx, dy) {
     if (it.x === p.x && it.y === p.y) {
       if (it.type === 'pearl') {
         G.run.pearls++;
-        addMsg('Подобран жемчуг.', 'loot');
+        addMsg(L('msg.pickedPearl'), 'loot');
       } else if (ICONF[it.type].auto) {
         const eff = ICONF[it.type].eff;
-        if (eff.attack) { p.attack += eff.attack; addMsg(`Гарпун +${eff.attack} атаки!`, 'loot'); }
-        if (eff.light) { p.lightRadius += eff.light; addMsg(`Свет +${eff.light} радиуса!`, 'loot'); }
+        if (eff.attack) { p.attack += eff.attack; addMsg(L('msg.harpoonBoost', eff.attack), 'loot'); }
+        if (eff.light) { p.lightRadius += eff.light; addMsg(L('msg.lightBoost', eff.light), 'loot'); }
       } else {
         if (p.inventory.length < MAX_INV) {
           p.inventory.push(it.type);
-          addMsg(`Подобран предмет: ${ICONF[it.type].name}`, 'loot');
+          addMsg(L('msg.pickedItem', L(INAME[it.type])), 'loot');
         } else {
-          addMsg('Инвентарь полон!', 'info');
+          addMsg(L('msg.invFull'), 'info');
           continue;
         }
       }
@@ -594,7 +731,7 @@ function processTurn(dx, dy) {
     const ap = G.airPockets[i];
     if (ap.x === p.x && ap.y === p.y) {
       p.oxygen = Math.min(p.maxOxygen, p.oxygen + 25);
-      addMsg('Воздушный карман! +25 O₂', 'heal');
+      addMsg(L('msg.airPocket'), 'heal');
       G.airPockets.splice(i, 1);
     }
   }
@@ -628,7 +765,7 @@ function enemyTurns() {
         const best = cands[0];
         if (best.nx === p.x && best.ny === p.y) {
           p.hp -= e.attack;
-          addMsg(`${cfg.name} атакует вас (-${e.attack})!`, 'danger');
+          addMsg(L('msg.enemyAttack', L(ENAME[e.type]), e.attack), 'danger');
           moved = true;
         } else {
           e.x = best.nx; e.y = best.ny;
@@ -650,7 +787,7 @@ function enemyTurns() {
         const chosen = cands[randInt(0, Math.min(cands.length - 1, 0))]; // usually first (closest to spawn)
         if (chosen.nx === p.x && chosen.ny === p.y) {
           p.hp -= e.attack;
-          addMsg(`${cfg.name} задевает вас (-${e.attack})!`, 'danger');
+          addMsg(L('msg.enemyBump', L(ENAME[e.type]), e.attack), 'danger');
           moved = true;
         } else {
           e.x = chosen.nx; e.y = chosen.ny;
@@ -668,7 +805,7 @@ function enemyTurns() {
   for (const e of G.enemies) {
     if (e.x === p.x && e.y === p.y && p.hp > 0) {
       p.hp -= e.attack;
-      addMsg(`${ECONF[e.type].name} врезается в вас (-${e.attack})!`, 'danger');
+      addMsg(L('msg.enemyCrash', L(ENAME[e.type]), e.attack), 'danger');
     }
   }
 }
@@ -677,7 +814,7 @@ function checkPlayerState() {
   const p = G.player;
   if (p.oxygen <= 0) {
     p.hp -= 1;
-    addMsg('Нехватка кислорода! -1 HP', 'danger');
+    addMsg(L('msg.noOxygen'), 'danger');
   }
   p.oxygen = Math.max(0, p.oxygen);
 
@@ -693,7 +830,7 @@ function checkPlayerState() {
     if (G.depth > G.run.maxDepth) G.run.maxDepth = G.depth;
     p.hp = Math.min(p.maxHp, p.hp + 5);
     p.oxygen = Math.min(p.maxOxygen, p.oxygen + 30);
-    addMsg(`Спуск на глубину ${G.depth}... (+5 HP, +30 O₂)`, 'heal');
+    addMsg(L('msg.descent', G.depth), 'heal');
     generateFloor();
     resizeCanvas();
   }
@@ -705,10 +842,10 @@ function showDeath() {
   G.meta.pearls += G.run.pearls;
   saveMeta(G.meta);
   $('death-stats').innerHTML = `
-    Глубина: <b>${G.run.maxDepth}</b><br>
-    Убито врагов: <b>${G.run.kills}</b><br>
-    Собрано жемчуга: <b>${G.run.pearls} (+${G.run.pearls} всего)</b><br>
-    Всего жемчуга: <b>${G.meta.pearls}</b>
+    ${L('death.depth')}: <b>${G.run.maxDepth}</b><br>
+    ${L('death.kills')}: <b>${G.run.kills}</b><br>
+    ${L('death.pearls')}: <b>${G.run.pearls} (${L('death.bonus', G.run.pearls)})</b><br>
+    ${L('death.total')}: <b>${G.meta.pearls}</b>
   `;
 }
 
@@ -721,12 +858,12 @@ function useItem(index) {
   if (cfg.use.hp) {
     const healed = Math.min(cfg.use.hp, p.maxHp - p.hp);
     p.hp = Math.min(p.maxHp, p.hp + cfg.use.hp);
-    addMsg(`Использовано: ${cfg.name} (+${healed} HP)`, 'heal');
+    addMsg(L('msg.usedHP', L(INAME[itype]), healed), 'heal');
   }
   if (cfg.use.oxygen) {
     const rest = Math.min(cfg.use.oxygen, p.maxOxygen - p.oxygen);
     p.oxygen = Math.min(p.maxOxygen, p.oxygen + cfg.use.oxygen);
-    addMsg(`Использовано: ${cfg.name} (+${rest} O₂)`, 'heal');
+    addMsg(L('msg.usedO2', L(INAME[itype]), rest), 'heal');
   }
   p.inventory.splice(index, 1);
   updateUI();
@@ -736,14 +873,14 @@ function updateUI() {
   const p = G.player;
   $('hp-display').textContent = `HP ${p.hp}/${p.maxHp}`;
   $('o2-display').textContent = `O₂ ${p.oxygen}/${p.maxOxygen}`;
-  $('depth-display').textContent = `Глуб. ${G.depth}`;
-  $('pearl-display').textContent = `Жемчуг ${G.run.pearls}`;
+  $('depth-display').textContent = `${L('stat.depth')} ${G.depth}`;
+  $('pearl-display').textContent = `${L('stat.pearl')} ${G.run.pearls}`;
 
   const slots = $('inv-slots');
   slots.innerHTML = p.inventory.map((it, i) =>
-    `<div class="inv-slot" onclick="useItem(${i})"><span><span class="key">${i+1}</span>${ICONF[it].name}</span><span style="color:#689;font-size:10px">[E]</span></div>`
+    `<div class="inv-slot" onclick="useItem(${i})"><span><span class="key">${i+1}</span>${L(INAME[it])}</span><span style="color:#689;font-size:10px">[E]</span></div>`
   ).join('');
-  if (p.inventory.length === 0) slots.innerHTML = '<div style="color:#446;font-size:10px">пусто</div>';
+  if (p.inventory.length === 0) slots.innerHTML = `<div style="color:#446;font-size:10px">${L('panel.empty')}</div>`;
 }
 
 // ---- RENDER ----
@@ -858,7 +995,7 @@ function render() {
       ctx.font = `bold ${Math.floor(r * 1.2)}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(cfg.ltr, cx, cy + 1);
+      ctx.fillText(L(ENAME[e.type] + 'Ltr'), cx, cy + 1);
     }
   }
 
@@ -905,14 +1042,14 @@ function resizeCanvas() {
 // ---- SHOP ----
 function refreshShop() {
   const m = G ? G.meta : loadMeta();
-  $('shop-pearls').textContent = `Жемчуг: ${m.pearls}`;
+  $('shop-pearls').textContent = L('shop.pearls', m.pearls);
   const upgrades = [
-    { key: 'hp', name: 'HP +5', cost: 5, desc: `Ур.${m.u.hp}`, max: 10 },
-    { key: 'oxygen', name: 'O₂ +20', cost: 5, desc: `Ур.${m.u.oxygen}`, max: 10 },
-    { key: 'attack', name: 'Атака +2', cost: 6, desc: `Ур.${m.u.attack}`, max: 10 },
-    { key: 'light', name: 'Свет +1', cost: 8, desc: `Ур.${m.u.light}`, max: 8 },
-    { key: 'tank', name: 'Старт. баллон O₂', cost: 10, desc: m.u.tank ? 'Куплено' : 'Нет', max: 1, check: () => m.u.tank },
-    { key: 'med', name: 'Старт. аптечка', cost: 10, desc: m.u.med ? 'Куплено' : 'Нет', max: 1, check: () => m.u.med },
+    { key: 'hp', name: L('upgrade.hp'), cost: 5, desc: L('updesc.lvl', m.u.hp), max: 10 },
+    { key: 'oxygen', name: L('upgrade.oxygen'), cost: 5, desc: L('updesc.lvl', m.u.oxygen), max: 10 },
+    { key: 'attack', name: L('upgrade.attack'), cost: 6, desc: L('updesc.lvl', m.u.attack), max: 10 },
+    { key: 'light', name: L('upgrade.light'), cost: 8, desc: L('updesc.lvl', m.u.light), max: 8 },
+    { key: 'tank', name: L('upgrade.tank'), cost: 10, desc: m.u.tank ? L('updesc.bought') : L('shop.not'), max: 1, check: () => m.u.tank },
+    { key: 'med', name: L('upgrade.med'), cost: 10, desc: m.u.med ? L('updesc.bought') : L('shop.not'), max: 1, check: () => m.u.med },
   ];
 
   $('shop-upgrades').innerHTML = upgrades.map(u => {
@@ -922,7 +1059,7 @@ function refreshShop() {
       <span class="info">${u.name} <span class="lvl">${u.desc}</span></span>
       <span class="cost">${u.cost} 💎</span>
       <button class="btn buy" ${canBuy ? '' : 'disabled'} onclick="buyUpgrade('${u.key}',${u.cost})">
-        ${owned ? '✓' : 'Купить'}
+        ${owned ? '✓' : L('btn.buy')}
       </button>
     </div>`;
   }).join('');
@@ -985,10 +1122,14 @@ $('btn-death-title').addEventListener('click', showTitle);
 $('btn-shop-dive').addEventListener('click', startGame);
 $('btn-shop-back').addEventListener('click', showTitle);
 
+$('btn-lang-en').addEventListener('click', () => setLang('en'));
+$('btn-lang-ru').addEventListener('click', () => setLang('ru'));
+
 window.addEventListener('resize', resizeCanvas);
 
 // ---- INIT ----
 G = { screen: 'title', meta: loadMeta() };
+applyLang();
 resizeCanvas();
 
 if ('serviceWorker' in navigator) {

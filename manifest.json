@@ -1,7 +1,7 @@
 {
   "name": "Seeking the Deep",
   "short_name": "SeekDeep",
-  "description": "Пошаговый подводный rogue-lite",
+  "description": "Turn-based underwater rogue-lite",
   "start_url": "./seeking-the-deep.html",
   "display": "standalone",
   "orientation": "portrait",

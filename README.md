@@ -1,41 +1,41 @@
 # Seeking the Deep
 
-Пошаговый подводный rogue-lite на чистом JavaScript (PWA).
+Turn-based underwater rogue-lite in vanilla JavaScript (PWA).
 
-## Описание
+## Description
 
-Исследуйте процедурно-генерируемые глубины, сражайтесь с глубоководными тварями и собирайте жемчуг. Кислород ограничен — каждое действие приближает вас к гибели. Найденный жемчуг сохраняется между забегами и позволяет покупать постоянные улучшения.
+Explore procedurally generated ocean depths, fight deep-sea creatures, and collect pearls. Oxygen is limited — every action brings you closer to death. Collected pearls persist between runs and can be used to purchase permanent upgrades.
 
-## Особенности
+## Features
 
-- Процедурная генерация карты (клеточный автомат, 4 итерации сглаживания)
-- Туман войны на основе BFS (невидимая / исследованная / видимая)
-- 4 типа врагов с разным поведением (патруль / преследование)
-- 5 типов предметов (Жемчуг, O2-баллон, Аптечка, Гарпун, Светящийся камень)
-- Мета-прогрессия: магазин постоянных улучшений за жемчуг
-- Мобильное управление (экранный D-pad)
-- PWA: работает офлайн, устанавливается на устройство
+- Procedural map generation (cellular automaton, 4 smoothing iterations)
+- BFS-based fog of war (unexplored / explored / visible)
+- 4 enemy types with different behavior (patrol / chase)
+- 5 item types (Pearl, O₂ Tank, Medkit, Harpoon, Glow Stone)
+- Meta-progression: permanent upgrade shop using pearls
+- Mobile controls (on-screen D-pad)
+- PWA: works offline, installable on device
 
-## Запуск
+## Running
 
-Откройте `seeking-the-deep.html` в браузере, либо раздайте папку через любой HTTP-сервер:
+Open `seeking-the-deep.html` in a browser, or serve the directory via any HTTP server:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Затем откройте http://localhost:8000/seeking-the-deep.html
+Then open http://localhost:8000/seeking-the-deep.html
 
-## Файлы
+## Files
 
-| Файл | Назначение |
+| File | Purpose |
 |---|---|
-| `seeking-the-deep.html` | Игра |
-| `game-mechanics.html` | Документация по механикам (генерация карт, видимость) |
-| `sw.js` | Service Worker (PWA, офлайн-кэш) |
+| `seeking-the-deep.html` | Game |
+| `game-mechanics.html` | Mechanics documentation (map generation, visibility) |
+| `sw.js` | Service Worker (PWA, offline cache) |
 | `manifest.json` | Web App Manifest |
-| `icon-192.png` / `icon-512.png` | Иконки PWA |
+| `icon-192.png` / `icon-512.png` | PWA icons |
 
-## Лицензия
+## License
 
 MIT
