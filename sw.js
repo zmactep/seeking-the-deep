@@ -1,5 +1,6 @@
 const CACHE_NAME = 'std-v2';
 const ASSETS = [
+  './index.html',
   './seeking-the-deep.html',
   './manifest.json'
 ];
