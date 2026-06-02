@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Механика игры — Seeking the Deep</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #050c14;
+  color: #bcd;
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  line-height: 1.5;
+}
+#app {
+  width: 100%;
+  max-width: 860px;
+  padding: 16px;
+}
+
+h1 {
+  font-size: 26px;
+  color: #4af;
+  text-shadow: 0 0 14px #4af8;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+.subtitle {
+  text-align: center;
+  color: #689;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* ===== Tabs ===== */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+.tab-btn {
+  background: #0d1f33;
+  color: #8ab;
+  border: 1px solid #1a3050;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  transition: 0.2s;
+}
+.tab-btn:hover { border-color: #3a6090; color: #bcd; }
+.tab-btn.active { background: #112840; border-color: #4af; color: #4af; border-bottom: 2px solid #4af; margin-bottom: -1px; }
+
+/* ===== Panels ===== */
+.panel {
+  display: none;
+  background: #081420;
+  border: 1px solid #1a3050;
+  border-radius: 0 6px 6px 6px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.panel.active { display: block; }
+
+h2 {
+  font-size: 18px;
+  color: #8bd;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #1a3050;
+  padding-bottom: 6px;
+}
+h3 { font-size: 15px; color: #7ac; margin: 16px 0 8px; }
+p { margin: 6px 0; font-size: 13px; color: #9ab; }
+ul { margin: 8px 0 8px 20px; font-size: 13px; color: #9ab; }
+li { margin: 3px 0; }
+
+.tag {
+  display: inline-block;
+  background: #112840;
+  color: #4af;
+  border: 1px solid #2a5080;
+  border-radius: 3px;
+  padding: 1px 8px;
+  font-size: 11px;
+  margin: 2px;
+}
+
+.hl { color: #4af; }
+.hl2 { color: #f80; }
+.hl3 { color: #8f8; }
+.hl4 { color: #f6a; }
+.hl5 { color: #c44; }
+
+/* ===== stat blocks ===== */
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.stat-card {
+  background: #0d1f33;
+  border: 1px solid #1a3050;
+  border-radius: 6px;
+  padding: 10px 14px;
+  flex: 1 1 120px;
+  text-align: center;
+}
+.stat-card .val { font-size: 20px; color: #4af; }
+.stat-card .lbl { font-size: 11px; color: #689; margin-top: 2px; }
+
+/* ===== enemy table ===== */
+.table-wrap { overflow-x: auto; margin: 10px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: #0d1f33;
+  color: #8ab;
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid #1a3050;
+  font-size: 12px;
+}
+td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #0d1f33;
+  color: #9ab;
+}
+tr:hover td { background: #0a1825; }
+
+/* ===== code block ===== */
+.code {
+  background: #060f1a;
+  border: 1px solid #1a3050;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #8ab;
+  overflow-x: auto;
+  margin: 10px 0;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+/* ===== Mermaid graph ===== */
+.graph-box {
+  background: #060f1a;
+  border: 1px solid #1a3050;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+.graph-box svg { display: block; margin: 0 auto; }
+
+/* ===== CA Demo ===== */
+#ca-demo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin: 12px 0;
+}
+#ca-canvas {
+  border: 1px solid #2a5080;
+  image-rendering: pixelated;
+  border-radius: 4px;
+}
+.ca-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ca-controls .btn { font-size: 12px; padding: 6px 14px; }
+.ca-stats { font-size: 12px; color: #689; }
+
+.btn {
+  background: #0d1f33;
+  color: #bcd;
+  border: 1px solid #2a5080;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: 0.2s;
+}
+.btn:hover { background: #153050; border-color: #4af; color: #def; }
+.btn:active { background: #1a3d5c; }
+
+/* ===== Flow diagram ===== */
+.flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 12px 0;
+}
+.flow-step {
+  background: #0d1f33;
+  border: 1px solid #2a5080;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #8ab;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.flow-arrow { color: #4af; font-size: 16px; flex: 0 0 auto; }
+
+/* ===== Schematic canvas ===== */
+.schematic-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+#schematic-canvas {
+  border: 1px solid #2a5080;
+  border-radius: 4px;
+  image-rendering: pixelated;
+}
+
+/* ===== visibility demo ===== */
+#vis-demo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin: 12px 0;
+  position: relative;
+}
+#vis-canvas {
+  border: 1px solid #2a5080;
+  border-radius: 4px;
+  image-rendering: pixelated;
+}
+#vis-canvas:hover { cursor: crosshair; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .stat-card { flex: 1 1 80px; }
+  .stat-card .val { font-size: 16px; }
+  #ca-demo, #vis-demo { flex-direction: column; align-items: center; }
+  .tabs { gap: 2px; }
+  .tab-btn { font-size: 11px; padding: 5px 8px; }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<h1>SEEKING THE DEEP</h1>
+<p class="subtitle">Пошаговый подводный rogue-lite — механика и архитектура</p>
+
+<div class="tabs">
+  <button class="tab-btn active" data-panel="p-overview">Обзор</button>
+  <button class="tab-btn" data-panel="p-map">Карта и генерация</button>
+  <button class="tab-btn" data-panel="p-vis">Видимость и туман</button>
+  <button class="tab-btn" data-panel="p-turn">Ход и бой</button>
+  <button class="tab-btn" data-panel="p-entities">Враги и предметы</button>
+  <button class="tab-btn" data-panel="p-progress">Прогрессия</button>
+  <button class="tab-btn" data-panel="p-arch">Архитектура</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- OVERVIEW -->
+<!-- ============================================================ -->
+<div id="p-overview" class="panel active">
+  <h2>Концепция игры</h2>
+  <p>
+    <span class="hl">Seeking the Deep</span> — подводный rogue-lite с пошаговой механикой.
+    Игрок управляет дайвером, спускающимся в океанские глубины.
+    Каждый уровень процедурно генерируется, враги действуют только в ответ на ход игрока.
+    Смерть перманентна для текущего забега, но жемчуг сохраняется для мета-прогрессии.
+  </p>
+
+  <h3>Ключевые механики</h3>
+  <div class="stat-row">
+    <div class="stat-card"><div class="val">4-напр.</div><div class="lbl">Перемещение</div></div>
+    <div class="stat-card"><div class="val">Клет.автомат</div><div class="lbl">Генерация карты</div></div>
+    <div class="stat-card"><div class="val">BFS</div><div class="lbl">Fog of War</div></div>
+    <div class="stat-card"><div class="val">Bump</div><div class="lbl">Боевая система</div></div>
+    <div class="stat-card"><div class="val">Chase + Patrol</div><div class="lbl">AI врагов</div></div>
+    <div class="stat-card"><div class="val">O₂-таймер</div><div class="lbl">Давление глубины</div></div>
+  </div>
+
+  <h3>Параметры карты</h3>
+  <div class="stat-row">
+    <div class="stat-card"><div class="val">30×20</div><div class="lbl">Размер сетки</div></div>
+    <div class="stat-card"><div class="val">10–28px</div><div class="lbl">Размер тайла</div></div>
+    <div class="stat-card"><div class="val">4 итерации</div><div class="lbl">Сглаживание CA</div></div>
+    <div class="stat-card"><div class="val">80 тайлов</div><div class="lbl">Мин. связная область</div></div>
+    <div class="stat-card"><div class="val">20 попыток</div><div class="lbl">Лимит генерации</div></div>
+  </div>
+
+  <h3>Игровой цикл (один ход)</h3>
+  <div class="code">
+Игрок действует (WASD/стрелки/Space)
+   → O₂ −1
+   → Подбор предметов на новой клетке
+   → Сбор воздуха из «воздушного кармана»
+   → Пересчёт видимости (BFS от игрока, радиус = light)
+   → Ход всех врагов (Chase / Patrol)
+   → Проверка смерти / выхода / удушья</div>
+
+  <h3>Управление</h3>
+  <p>
+    <span class="tag">WASD</span> <span class="tag">←↑↓→</span> — движение / атака (bump)
+    <span class="tag">Space</span> — пропуск хода
+    <span class="tag">1–5</span> / <span class="tag">E</span> — использование предмета из инвентаря
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<!-- MAP & GENERATION -->
+<!-- ============================================================ -->
+<div id="p-map" class="panel">
+  <h2>Генерация карты: клеточный автомат</h2>
+  <p>
+    Алгоритм создаёт естественные пещерные структуры. Стартовое заполнение ~<span class="hl">44% стен</span>,
+    затем <span class="hl">4 итерации</span> клеточного автомата по правилу:
+  </p>
+  <div class="code">Если у клетки (с учётом 8 соседей) ≥5 стен ИЛИ 0 стен → стена
+Иначе → пол</div>
+
+  <p>После этого отсекаются изолированные «острова» — все клетки пола, не входящие в крупнейшую связную область (≥80 тайлов), превращаются в стены. Вход размещается в верхней части карты, выход — в нижней. Между входом и выходом проверяется BFS-путь.</p>
+
+  <p>Если за <span class="hl">20 попыток</span> не удалось сгенерировать проходимую карту, используется <span class="hl2">fallback</span> — открытый прямоугольник со стенами по периметру.</p>
+
+  <h3>Демонстрация генерации</h3>
+  <div id="ca-demo">
+    <canvas id="ca-canvas" width="300" height="200"></canvas>
+    <div class="ca-controls">
+      <button class="btn" onclick="caDemo.step()">Одна итерация</button>
+      <button class="btn" onclick="caDemo.run()">Авто-запуск</button>
+      <button class="btn" onclick="caDemo.reset()">Сброс</button>
+      <div class="ca-stats">
+        <div>Итерация: <span id="ca-iter">0</span>/4</div>
+        <div>Стен: <span id="ca-wallpct">44</span>%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VISIBILITY -->
+<!-- ============================================================ -->
+<div id="p-vis" class="panel">
+  <h2>Система видимости (Fog of War)</h2>
+  <p>
+    Видимость пересчитывается <span class="hl">каждый ход</span> с помощью
+    <span class="hl">BFS</span> от позиции игрока. Радиус обзора складывается из базового (5)
+    и бонусов: <span class="hl3">+1 за уровень в магазине</span> и <span class="hl3">+2 от Светового камня</span>.
+    Стены блокируют распространение света; стены, смежные с видимым полом, тоже показываются.
+  </p>
+  <p>
+    <span class="hl4">Исследованные, но невидимые</span> клетки отрисовываются тускло (40% альфа).
+    Враги и предметы на них скрыты. <span class="hl5">Неисследованные</span> клетки — полностью чёрные.
+  </p>
+
+  <h3>Интерактивная демонстрация</h3>
+  <p style="font-size:12px;color:#689">Кликните по карте, чтобы переместить дайвера. Серые клетки — стены. Жёлтое свечение — зона видимости.</p>
+  <div id="vis-demo">
+    <canvas id="vis-canvas" width="400" height="280"></canvas>
+    <div>
+      <div style="margin-bottom:8px;font-size:13px;color:#8ab">Радиус света: <span class="hl" id="vis-radius-val">5</span></div>
+      <input type="range" id="vis-radius-slider" min="2" max="12" value="5" style="width:160px;accent-color:#4af;">
+      <div style="margin-top:8px;">
+        <button class="btn" style="font-size:11px;padding:4px 10px;" onclick="visDemo.newMap()">Новая карта</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:#1a3"></div>Пол</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#444"></div>Стена</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#4ff"></div>Игрок</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ff3;opacity:0.6"></div>Зона обзора</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#0a2"></div>Исследовано</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TURN & COMBAT -->
+<!-- ============================================================ -->
+<div id="p-turn" class="panel">
+  <h2>Пошаговая система и бой</h2>
+  <p>
+    Игра использует классическую <span class="hl">пошаговую</span> механику: мир обновляется
+    только после действия игрока. Враги не имеют собственного таймера — каждый враг
+    делает один ход после игрока.
+  </p>
+
+  <h3>Боевая система (bump-атака)</h3>
+  <p>
+    Атака происходит при <span class="hl2">движении на клетку врага</span>. Нет отдельной
+    команды «атаковать» — бой неотделим от перемещения. Игрок наносит урон при входе в
+    клетку врага, враг атакует в ответ в свой ход.
+  </p>
+  <div class="code">Урон игрока = 5 (база) + уровень_атаки × 2 + 3 (если Гарпун)
+Максимум: 5 + 20 + 3 = 28</div>
+
+  <h3>AI врагов</h3>
+  <p>Каждый враг действует по одному из двух режимов:</p>
+  <ul>
+    <li><span class="hl">Chase</span> — игрок в радиусе зрения врага (Manhattan-дистанция). Враг движется к игроку, выбирая клетку, минимизирующую расстояние. Если смежен — атакует.</li>
+    <li><span class="hl4">Patrol</span> — игрок вне зоны видимости. Враг возвращается к точке спавна, выбирая случайное направление среди оптимальных.</li>
+  </ul>
+  <p>Враги не проходят сквозь стены и других врагов.</p>
+
+  <h3>Последовательность хода (processTurn)</h3>
+  <div class="flow-row">
+    <div class="flow-step">Действие<br>игрока</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">O₂ −1</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Подбор<br>предметов</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Воздушный<br>карман</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Обзор<br>(BFS)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Ход всех<br>врагов</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Проверка<br>смерти/O₂/выхода</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ENEMIES & ITEMS -->
+<!-- ============================================================ -->
+<div id="p-entities" class="panel">
+  <h2>Враги (4 типа)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Название</th><th>Буква</th><th>HP (база)</th><th>ATK (база)</th><th>Зрение</th><th>Цвет</th></tr>
+      <tr><td style="color:#f6a">Медуза</td><td style="color:#f6a">М</td><td>8</td><td>3</td><td>3</td><td><span class="legend-swatch" style="background:#f6a;display:inline-block;"></span> #f6a</td></tr>
+      <tr><td style="color:#f80">Удильщик</td><td style="color:#f80">У</td><td>15</td><td>6</td><td>6</td><td><span class="legend-swatch" style="background:#f80;display:inline-block;"></span> #f80</td></tr>
+      <tr><td style="color:#c44">Кальмар</td><td style="color:#c44">К</td><td>25</td><td>10</td><td>4</td><td><span class="legend-swatch" style="background:#c44;display:inline-block;"></span> #c44</td></tr>
+      <tr><td style="color:#a4f">Глуб. ужас</td><td style="color:#a4f">Г</td><td>40</td><td>15</td><td>8</td><td><span class="legend-swatch" style="background:#a4f;display:inline-block;"></span> #a4f</td></tr>
+    </table>
+  </div>
+  <p>HP и ATK масштабируются с глубиной: <span class="hl">× (1 + (depth−1) × 0.12)</span>.</p>
+  <p>Спавн-пул: <span class="code" style="display:inline;padding:2px 6px;">['медуза','медуза','удильщик','удильщик','кальмар','ужас']</span> — более слабые враги вероятнее. Количество врагов: <span class="hl">3-6 + ⌊(depth−1)/2⌋</span>.</p>
+  <p>При убийстве — <span class="hl2">50% шанс дропа 1 жемчужины</span>.</p>
+
+  <h2>Предметы (5 типов)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Название</th><th>Авто?</th><th>Эффект</th><th>Спавн</th></tr>
+      <tr><td style="color:#ff0">Жемчуг</td><td>Да (мгнов.)</td><td>+1 к жемчугу забега</td><td>2–5 шт./уровень</td></tr>
+      <tr><td style="color:#4af">Баллон O₂</td><td>Нет (инв.)</td><td>+30 O₂ при использовании</td><td>Случайный</td></tr>
+      <tr><td style="color:#f44">Аптечка</td><td>Нет (инв.)</td><td>+10 HP при использовании</td><td>Случайный</td></tr>
+      <tr><td style="color:#fa0">Гарпун</td><td>Да (экип.)</td><td>+3 к атаке на весь забег</td><td>Случайный</td></tr>
+      <tr><td style="color:#af0">Свет. камень</td><td>Да (экип.)</td><td>+2 к радиусу света на весь забег</td><td>Случайный</td></tr>
+    </table>
+  </div>
+  <p>Авто-предметы срабатывают мгновенно и не попадают в инвентарь. Расходники попадают в инвентарь (до <span class="hl">5 слотов</span>). Случайных предметов на полу: <span class="hl">2-4 + ⌊(depth−1)/3⌋</span>.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- PROGRESSION -->
+<!-- ============================================================ -->
+<div id="p-progress" class="panel">
+  <h2>Глубина и сложность</h2>
+  <p>
+    Игрок начинает на <span class="hl">глубине 1</span> и спускается, находя выход
+    (зелёный ▼) на каждом уровне. При спуске:
+  </p>
+  <ul>
+    <li>Глубина увеличивается на 1</li>
+    <li>Игрок восстанавливает <span class="hl3">+5 HP</span> (до максимума)</li>
+    <li>Игрок получает <span class="hl3">+30 O₂</span> (до максимума)</li>
+    <li>Генерируется новый уровень с усиленными врагами</li>
+  </ul>
+
+  <h2>Система кислорода</h2>
+  <div class="stat-row">
+    <div class="stat-card"><div class="val">100</div><div class="lbl">Базовый O₂</div></div>
+    <div class="stat-card"><div class="val">−1</div><div class="lbl">За каждое действие</div></div>
+    <div class="stat-card"><div class="val">−1 HP/ход</div><div class="lbl">При O₂ = 0</div></div>
+    <div class="stat-card"><div class="val">+25</div><div class="lbl">Возд. карман (разово)</div></div>
+    <div class="stat-card"><div class="val">+30</div><div class="lbl">Баллон O₂</div></div>
+    <div class="stat-card"><div class="val">+30</div><div class="lbl">Выход с уровня</div></div>
+  </div>
+
+  <h2>Мета-прогрессия (Магазин)</h2>
+  <p>Жемчуг сохраняется между забегами в <span class="hl">localStorage</span>. В магазине можно купить постоянные улучшения:</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Улучшение</th><th>Цена</th><th>Эффект</th><th>Макс.</th></tr>
+      <tr><td>HP +5</td><td>5 жемч.</td><td>+5 к макс. HP</td><td>10 уровней</td></tr>
+      <tr><td>O₂ +20</td><td>5 жемч.</td><td>+20 к макс. O₂</td><td>10 уровней</td></tr>
+      <tr><td>Атака +2</td><td>6 жемч.</td><td>+2 к атаке</td><td>10 уровней</td></tr>
+      <tr><td>Свет +1</td><td>8 жемч.</td><td>+1 к радиусу света</td><td>8 уровней</td></tr>
+      <tr><td>Старт. баллон O₂</td><td>10 жемч.</td><td>Баллон в начале забега</td><td>1 (флаг)</td></tr>
+      <tr><td>Старт. аптечка</td><td>10 жемч.</td><td>Аптечка в начале забега</td><td>1 (флаг)</td></tr>
+    </table>
+  </div>
+
+  <h2>Состояние при смерти</h2>
+  <p>При смерти (HP ≤ 0) забег завершается. Показывается статистика: <span class="hl5">макс. глубина</span>, <span class="hl2">убийства</span>, <span class="hl">жемчуг за забег</span>. Весь собранный жемчуг прибавляется к общему счёту и сохраняется в localStorage.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- ARCHITECTURE -->
+<!-- ============================================================ -->
+<div id="p-arch" class="panel">
+  <h2>Архитектура кода</h2>
+  <p>Игра реализована в <span class="hl">одном HTML-файле</span> (seeking-the-deep.html), без внешних зависимостей. Код (~990 строк) структурирован в логические блоки:</p>
+
+  <h3>Карта модулей</h3>
+
+  <div class="graph-box" id="mermaid-graph"></div>
+
+  <h3>Структура <code>G</code> (глобальное состояние)</h3>
+  <div class="code">
+G = {
+  screen,             // текущий экран (title/game/death/shop)
+  depth,              // текущая глубина
+  map: number[][],    // сетка 30×20 (T_WALL=0, T_FLOOR=1)
+  player: { x, y, hp, maxHp, oxygen, maxOxygen, attack, light, inv[] },
+  enemies: [{ type, x, y, hp, atk, sx, sy, vision }],
+  groundItems: [{ type, x, y }],
+  airPockets: [{ x, y, used }],
+  explored: bool[][], // 30×20 — какие клетки были увидены
+  visible: bool[][],  // 30×20 — какие клетки видны сейчас
+  messages: [],       // лог сообщений (до 40)
+  run: { kills, depth, maxDepth, pearls }, // статистика забега
+  meta                // постоянные данные из localStorage
+}</div>
+
+  <h3>Поток данных рендеринга</h3>
+  <div class="code">
+render() вызывается после каждого processTurn():
+  1. Очистка canvas
+  2. Отрисовка тайлов пола (dim для explored, dark для visible)
+  3. Стены по смежным видимым клеткам
+  4. Выход (▼)
+  5. Воздушные карманы (синие круги)
+  6. Предметы (цветные точки)
+  7. Враги (цветные круги + буква + HP-бар)
+  8. Игрок (голубой круг + свечение)</div>
+
+  <h3>Инициализация</h3>
+  <div class="code">
+window.onload:
+  → defMeta()      // загрузка localStorage или значения по умолчанию
+  → resizeCanvas() // подгон размера тайла под экран
+  → render()       // стартовый экран (титул)</div>
+
+  <h3>Полный цикл забега</h3>
+  <div class="code">
+startGame():
+  → playerBase()       // создание игрока с учётом апгрейдов
+  → applyStartItems()  // выдача стартовых предметов
+  → generateFloor()    // карта + враги + предметы
+  → updateVisibility() // первый расчёт обзора
+  → render()           // отрисовка
+
+На каждом ходу:
+  → processTurn(dx, dy)
+      → движение / bump-атака
+      → O₂--, подбор, воздух
+      → updateVisibility()
+      → enemyTurns() (каждый враг: chase или patrol)
+      → checkPlayerState() (смерть, выход, удушье)
+  → render()</div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ===== Tab navigation =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.panel).classList.add('active');
+  });
+});
+
+// ===== Mermaid graph (Architecture tab) =====
+(function drawMermaid() {
+  const container = document.getElementById('mermaid-graph');
+  const W = container.clientWidth || 800;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 800 420`);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '420');
+  svg.style.maxWidth = '800px';
+  svg.style.display = 'block';
+  svg.style.margin = '0 auto';
+
+  function box(id, x, y, w, h, label, fill, color) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('x', x); r.setAttribute('y', y);
+    r.setAttribute('width', w); r.setAttribute('height', h);
+    r.setAttribute('rx', '4'); r.setAttribute('ry', '4');
+    r.setAttribute('fill', fill);
+    r.setAttribute('stroke', color || '#2a5080');
+    g.appendChild(r);
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', x + w/2); t.setAttribute('y', y + h/2 + 4);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-size', '11');
+    t.setAttribute('font-family', 'Courier New, monospace');
+    t.setAttribute('fill', color || '#bcd');
+    t.textContent = label;
+    g.appendChild(t);
+    svg.appendChild(g);
+  }
+
+  function arrow(x1, y1, x2, y2, label) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#3a6090');
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('marker-end', 'url(#arrowhead)');
+    g.appendChild(line);
+    if (label) {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2 - 4;
+      t.setAttribute('x', mx); t.setAttribute('y', my);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', '9');
+      t.setAttribute('fill', '#689');
+      t.setAttribute('font-family', 'Courier New, monospace');
+      t.textContent = label;
+      g.appendChild(t);
+    }
+    svg.appendChild(g);
+  }
+
+  // Arrowhead marker
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'arrowhead');
+  marker.setAttribute('markerWidth', '8'); marker.setAttribute('markerHeight', '6');
+  marker.setAttribute('refX', '8'); marker.setAttribute('refY', '3');
+  marker.setAttribute('orient', 'auto');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', '0 0, 8 3, 0 6');
+  poly.setAttribute('fill', '#3a6090');
+  marker.appendChild(poly);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  // CORE block
+  box('core', 308, 10, 184, 36, 'G (Game State)', '#0a1a30', '#4af');
+
+  // Input
+  box('input', 60, 80, 140, 36, 'onkeydown / D-pad', '#0d1f33', '#8ab');
+  arrow(130, 116, 350, 46, 'dx,dy');
+
+  // processTurn
+  box('turn', 308, 70, 184, 36, 'processTurn(dx,dy)', '#0a1a30', '#f80');
+  arrow(400, 46, 400, 70);
+
+  // Subsystems under processTurn
+  box('gen', 40, 150, 130, 32, 'generateMap()', '#0d1f33', '#8f8');
+  box('place', 190, 150, 130, 32, 'placeEntities()', '#0d1f33', '#8f8');
+  box('vis', 340, 150, 130, 32, 'updateVisibility()', '#0d1f33', '#ff0');
+  box('ai', 490, 150, 130, 32, 'enemyTurns()', '#0d1f33', '#f6a');
+  box('check', 640, 150, 130, 32, 'checkPlayerState()', '#0d1f33', '#f44');
+
+  arrow(400, 106, 400, 150);
+  arrow(330, 170, 170, 170);
+  arrow(260, 170, 312, 170, '');
+  arrow(400, 182, 400, 210);
+  arrow(400, 182, 400, 210);
+
+  // Render
+  box('render', 308, 210, 184, 36, 'render() → Canvas', '#0a1a30', '#8bd');
+  arrow(400, 210, 400, 210);
+
+  // Meta
+  box('meta', 40, 280, 140, 32, 'localStorage', '#0d1f33', '#a4f');
+  box('shop', 200, 280, 130, 32, 'startGame()', '#0d1f33', '#a4f');
+  box('death', 360, 280, 130, 32, 'showDeath()', '#0d1f33', '#c44');
+
+  arrow(110, 280, 110, 182);
+  arrow(265, 280, 308, 210);
+  arrow(425, 280, 425, 246);
+
+  container.appendChild(svg);
+})();
+
+// ===== Cellular Automata Demo =====
+const caDemo = (() => {
+  const W = 30, H = 20, SCALE = 10;
+  const canvas = document.getElementById('ca-canvas');
+  canvas.width = W * SCALE;
+  canvas.height = H * SCALE;
+  const ctx = canvas.getContext('2d');
+
+  let map, iteration, total;
+
+  function initMap() {
+    map = [];
+    for (let y = 0; y < H; y++) {
+      map[y] = [];
+      for (let x = 0; x < W; x++) {
+        if (x === 0 || y === 0 || x === W-1 || y === H-1) {
+          map[y][x] = 0; // border wall
+        } else {
+          map[y][x] = Math.random() < 0.44 ? 0 : 1;
+        }
+      }
+    }
+    iteration = 0;
+  }
+
+  function countWalls(x, y) {
+    let walls = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) { walls++; continue; }
+        if (map[ny][nx] === 0) walls++;
+      }
+    }
+    return walls;
+  }
+
+  function iterate() {
+    const next = [];
+    for (let y = 0; y < H; y++) {
+      next[y] = [];
+      for (let x = 0; x < W; x++) {
+        if (x === 0 || y === 0 || x === W-1 || y === H-1) {
+          next[y][x] = 0;
+        } else {
+          const walls = countWalls(x, y);
+          next[y][x] = (walls >= 5 || walls === 0) ? 0 : 1;
+        }
+      }
+    }
+    map = next;
+    iteration++;
+  }
+
+  function draw() {
+    let walls = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (map[y][x] === 0) {
+          ctx.fillStyle = '#1a3050';
+          walls++;
+        } else {
+          ctx.fillStyle = '#0a2040';
+        }
+        ctx.fillRect(x * SCALE, y * SCALE, SCALE, SCALE);
+      }
+    }
+    document.getElementById('ca-iter').textContent = iteration;
+    document.getElementById('ca-wallpct').textContent = Math.round(walls / (W * H) * 100);
+  }
+
+  let timer = null;
+
+  function step() {
+    if (iteration >= 4) return;
+    iterate();
+    draw();
+  }
+
+  function run() {
+    if (timer) return;
+    function tick() {
+      if (iteration >= 4) { timer = null; return; }
+      iterate();
+      draw();
+      timer = setTimeout(tick, 350);
+    }
+    tick();
+  }
+
+  function reset() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    initMap();
+    draw();
+  }
+
+  initMap();
+  draw();
+  return { step, run, reset };
+})();
+
+// ===== Visibility Demo =====
+const visDemo = (() => {
+  const W = 40, H = 20, SCALE = 10;
+  const canvas = document.getElementById('vis-canvas');
+  canvas.width = W * SCALE;
+  canvas.height = H * SCALE + 80;
+  const ctx = canvas.getContext('2d');
+
+  const slider = document.getElementById('vis-radius-slider');
+  const radiusVal = document.getElementById('vis-radius-val');
+
+  let map, explored, playerX, playerY;
+
+  function makeMap() {
+    map = [];
+    explored = [];
+    for (let y = 0; y < H; y++) {
+      map[y] = [];
+      explored[y] = [];
+      for (let x = 0; x < W; x++) {
+        const border = x === 0 || y === 0 || x === W-1 || y === H-1;
+        const r = Math.random();
+        map[y][x] = border ? 0 : (r < 0.35 ? 0 : 1);
+        explored[y][x] = false;
+      }
+    }
+    // Ensure start area is open
+    for (let y = 1; y <= 3; y++)
+      for (let x = 1; x <= 3; x++)
+        map[y][x] = 1;
+    playerX = 2; playerY = 2;
+  }
+
+  function bfsVisible(sx, sy, radius) {
+    const visible = Array.from({length: H}, () => Array(W).fill(false));
+    const q = [[sx, sy, 0]];
+    visible[sy][sx] = true;
+    const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    let head = 0;
+    while (head < q.length) {
+      const [cx, cy, d] = q[head++];
+      if (d >= radius) continue;
+      for (const [ddx, ddy] of dirs) {
+        const nx = cx + ddx, ny = cy + ddy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        if (visible[ny][nx]) continue;
+        if (map[ny][nx] === 0) { visible[ny][nx] = true; continue; }
+        visible[ny][nx] = true;
+        q.push([nx, ny, d + 1]);
+      }
+    }
+    return visible;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const radius = parseInt(slider.value);
+    radiusVal.textContent = radius;
+    const visible = bfsVisible(playerX, playerY, radius);
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const px = x * SCALE, py = y * SCALE;
+        if (visible[y][x]) {
+          explored[y][x] = true;
+          const isWall = map[y][x] === 0;
+          ctx.fillStyle = isWall ? '#556' : '#1a3';
+          if (!isWall) {
+            ctx.fillStyle = 'rgba(255,255,50,0.25)';
+          }
+          ctx.fillRect(px, py, SCALE, SCALE);
+          if (map[y][x] === 1) ctx.fillStyle = '#1a3';
+          else ctx.fillStyle = '#556';
+          ctx.fillRect(px, py, SCALE, SCALE);
+        } else if (explored[y][x]) {
+          ctx.fillStyle = map[y][x] === 0 ? '#333' : '#0a2';
+          ctx.fillRect(px, py, SCALE, SCALE);
+        } else {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(px, py, SCALE, SCALE);
+        }
+      }
+    }
+
+    // Player
+    ctx.fillStyle = '#4ff';
+    ctx.beginPath();
+    ctx.arc(playerX * SCALE + SCALE/2, playerY * SCALE + SCALE/2, SCALE * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = (canvas.height - 80) / rect.height;
+    const mx = Math.floor((e.offsetX * scaleX) / SCALE);
+    const my = Math.floor((e.offsetY * scaleY) / SCALE);
+    if (mx >= 0 && my >= 0 && mx < W && my < H && map[my][mx] === 1) {
+      playerX = mx; playerY = my;
+      draw();
+    }
+  });
+
+  slider.addEventListener('input', draw);
+
+  makeMap();
+  draw();
+  return { newMap: () => { makeMap(); draw(); } };
+})();
+</script>
+</body>
+</html>

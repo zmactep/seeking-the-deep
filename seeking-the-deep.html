@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050c14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.json">
+<title>Seeking the Deep</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #050c14;
+  color: #bcd;
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow-y: auto;
+}
+#app {
+  width: 100%;
+  max-width: 780px;
+  padding: 8px;
+}
+.screen { display: none; flex-direction: column; align-items: center; gap: 12px; }
+.screen.active { display: flex; }
+
+h1 { font-size: 24px; color: #4af; text-shadow: 0 0 12px #4af8; letter-spacing: 4px; text-align: center; }
+h2 { font-size: 16px; color: #8bd; }
+.btn {
+  background: #0d1f33;
+  color: #bcd;
+  border: 1px solid #2a5080;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 160px;
+  text-align: center;
+}
+.btn:hover { background: #153050; border-color: #4af; color: #def; }
+.btn:active { background: #1a3d5c; }
+.btn.small { min-width: auto; padding: 4px 12px; font-size: 12px; }
+.btn.buy { min-width: 64px; padding: 4px 8px; font-size: 11px; }
+
+#screen-title p { color: #689; font-size: 13px; text-align: center; }
+
+/* Game Layout */
+#game-layout { display: flex; gap: 8px; align-items: flex-start; width: 100%; }
+#game-left { flex-shrink: 0; }
+#game-right { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 140px; font-size: 12px; }
+
+canvas {
+  display: block;
+  border: 2px solid #1a3050;
+  border-radius: 4px;
+  image-rendering: pixelated;
+}
+
+#stats-bar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; margin-bottom: 4px;
+  padding: 4px 6px;
+  background: #0a1520;
+  border-radius: 4px;
+  border: 1px solid #1a2a3a;
+}
+.stat { white-space: nowrap; }
+.stat.hp { color: #f66; }
+.stat.o2 { color: #6cf; }
+.stat.depth { color: #8c8; }
+.stat.pearl { color: #ff4; }
+
+#inv-panel {
+  background: #0a1520;
+  border: 1px solid #1a2a3a;
+  border-radius: 4px;
+  padding: 6px;
+}
+#inv-panel .title { color: #689; margin-bottom: 4px; font-size: 11px; }
+#inv-slots { display: flex; flex-direction: column; gap: 3px; }
+.inv-slot {
+  background: #0d1f33;
+  border: 1px solid #1a3050;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 11px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.inv-slot:hover { background: #153050; border-color: #4af; }
+.inv-slot .key { color: #689; font-size: 10px; margin-right: 4px; }
+
+#msg-log {
+  background: #0a1520;
+  border: 1px solid #1a2a3a;
+  border-radius: 4px;
+  padding: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.5;
+}
+#msg-log .msg { color: #8ab; }
+#msg-log .msg.danger { color: #f66; }
+#msg-log .msg.loot { color: #ff4; }
+#msg-log .msg.heal { color: #6f6; }
+#msg-log .msg.info { color: #6cf; }
+
+#dpad { display: grid; grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px 48px; gap: 4px; justify-content: center; margin-top: 6px; }
+.dpad-btn {
+  width: 48px; height: 48px;
+  background: #0d1f33;
+  border: 1px solid #2a5080;
+  color: #bcd;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.dpad-btn:active { background: #1a3d5c; border-color: #4af; }
+.dpad-up { grid-column: 2; grid-row: 1; }
+.dpad-left { grid-column: 1; grid-row: 2; }
+.dpad-center { grid-column: 2; grid-row: 2; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-down { grid-column: 2; grid-row: 3; }
+
+/* Death Screen */
+#death-stats { text-align: center; font-size: 14px; line-height: 1.8; color: #8ab; }
+
+/* Shop */
+#shop-upgrades { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 360px; }
+.shop-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #0a1520; border: 1px solid #1a2a3a;
+  padding: 6px 10px; border-radius: 4px; font-size: 13px;
+}
+.shop-row .info { flex: 1; }
+.shop-row .cost { color: #ff4; margin: 0 8px; white-space: nowrap; }
+.shop-row .lvl { color: #689; font-size: 11px; }
+
+@media (max-width: 600px) {
+  #game-layout { flex-direction: column; align-items: center; }
+  #game-right { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  #inv-panel { flex: 1; min-width: 100px; }
+  #msg-log { flex: 2; min-width: 140px; max-height: 80px; }
+  #dpad { margin-top: 4px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="screen-title" class="screen active">
+    <h1>SEEKING<br>THE DEEP</h1>
+    <p>Пошаговый подводный rogue-lite</p>
+    <button class="btn" id="btn-new-game">Новое погружение</button>
+    <button class="btn" id="btn-shop">Магазин</button>
+    <p style="font-size:10px;color:#446;margin-top:4px">WASD/Стрелки — движение<br>Пробел — ждать | 1–5 — предмет</p>
+  </div>
+
+  <div id="screen-game" class="screen">
+    <div id="stats-bar">
+      <span class="stat hp" id="hp-display"></span>
+      <span class="stat o2" id="o2-display"></span>
+      <span class="stat depth" id="depth-display"></span>
+      <span class="stat pearl" id="pearl-display"></span>
+    </div>
+    <div id="game-layout">
+      <div id="game-left">
+        <canvas id="gc"></canvas>
+      </div>
+      <div id="game-right">
+        <div id="inv-panel">
+          <div class="title">Инвентарь</div>
+          <div id="inv-slots"></div>
+        </div>
+        <div id="msg-log"></div>
+      </div>
+    </div>
+    <div id="dpad">
+      <button class="dpad-btn dpad-up" data-dx="0" data-dy="-1">▲</button>
+      <button class="dpad-btn dpad-left" data-dx="-1" data-dy="0">◄</button>
+      <button class="dpad-btn dpad-center" data-dx="0" data-dy="0">●</button>
+      <button class="dpad-btn dpad-right" data-dx="1" data-dy="0">►</button>
+      <button class="dpad-btn dpad-down" data-dx="0" data-dy="1">▼</button>
+    </div>
+  </div>
+
+  <div id="screen-death" class="screen">
+    <h1>ВЫ ПОГИБЛИ</h1>
+    <div id="death-stats"></div>
+    <button class="btn" id="btn-death-shop">Магазин</button>
+    <button class="btn" id="btn-death-retry">Новое погружение</button>
+    <button class="btn" id="btn-death-title">Главное меню</button>
+  </div>
+
+  <div id="screen-shop" class="screen">
+    <h1>МАГАЗИН</h1>
+    <div style="color:#ff4;font-size:15px" id="shop-pearls"></div>
+    <div id="shop-upgrades"></div>
+    <button class="btn" id="btn-shop-dive">Новое погружение</button>
+    <button class="btn" id="btn-shop-back">Назад</button>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const MAP_W = 30, MAP_H = 20;
+const T_WALL = 0, T_FLOOR = 1;
+const MAX_INV = 5;
+const META_KEY = 'std_meta_v1';
+const DIRS = [[0,-1],[0,1],[-1,0],[1,0]];
+const ALL_DIRS = [[0,-1],[0,1],[-1,0],[1,0],[0,0]];
+
+const ECONF = {
+  jellyfish: { name:'Медуза', hp:8, atk:3, col:'#f6a', ltr:'М', vis:3 },
+  angler:    { name:'Удильщик', hp:15, atk:6, col:'#f80', ltr:'У', vis:6 },
+  squid:     { name:'Кальмар', hp:25, atk:10, col:'#c44', ltr:'К', vis:4 },
+  horror:    { name:'Глуб.ужас', hp:40, atk:15, col:'#a4f', ltr:'Г', vis:8 },
+};
+const E_POOL = ['jellyfish','jellyfish','angler','angler','squid','horror'];
+
+const ICONF = {
+  pearl:     { name:'Жемчуг', col:'#fff', auto:true, isCurr:true },
+  airTank:   { name:'Баллон O₂', col:'#4cf', auto:false, use:{oxygen:30} },
+  medkit:    { name:'Аптечка', col:'#f44', auto:false, use:{hp:10} },
+  harpoon:   { name:'Гарпун', col:'#ccc', auto:true, eff:{attack:3} },
+  glowStone: { name:'Свет.камень', col:'#ff4', auto:true, eff:{light:2} },
+};
+
+const canvas = $('gc');
+const ctx = canvas.getContext('2d');
+let TILE = 20;
+let G = null;
+
+function loadMeta() {
+  try { const d = JSON.parse(localStorage.getItem(META_KEY)); return d || defMeta(); }
+  catch { return defMeta(); }
+}
+function saveMeta(m) { localStorage.setItem(META_KEY, JSON.stringify(m)); }
+function defMeta() { return { pearls:0, u:{hp:0, oxygen:0, attack:0, light:0, tank:false, med:false} }; }
+
+function screen(name) {
+  ['screen-title','screen-game','screen-death','screen-shop'].forEach(s => $(s).classList.remove('active'));
+  $(name).classList.add('active');
+}
+
+function playerBase() {
+  const m = G.meta;
+  return {
+    x:0, y:0,
+    maxHp: 20 + m.u.hp * 5,
+    hp: 20 + m.u.hp * 5,
+    maxOxygen: 100 + m.u.oxygen * 20,
+    oxygen: 100 + m.u.oxygen * 20,
+    attack: 5 + m.u.attack * 2,
+    lightRadius: 5 + m.u.light,
+    inventory: [],
+  };
+}
+
+function addMsg(text, cls) {
+  G.messages.unshift({ text, cls: cls || '' });
+  if (G.messages.length > 40) G.messages.length = 40;
+  const log = $('msg-log');
+  log.innerHTML = G.messages.slice(0, 12).map(m =>
+    `<div class="msg ${m.cls}">${m.text}</div>`
+  ).join('');
+}
+
+function canMoveTo(x, y, skipEnemy) {
+  if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return false;
+  if (G.map[y][x] === T_WALL) return false;
+  for (const e of G.enemies) {
+    if (e !== skipEnemy && e.x === x && e.y === y) return false;
+  }
+  return true;
+}
+
+function enemyAt(x, y) {
+  return G.enemies.find(e => e.x === x && e.y === y);
+}
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = randInt(0, i); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+
+function generateMap() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const map = [];
+    for (let y = 0; y < MAP_H; y++) {
+      map[y] = [];
+      for (let x = 0; x < MAP_W; x++) {
+        map[y][x] = Math.random() < 0.44 ? T_WALL : T_FLOOR;
+      }
+    }
+    for (let y = 0; y < MAP_H; y++) {
+      map[y][0] = T_WALL; map[y][MAP_W - 1] = T_WALL;
+    }
+    for (let x = 0; x < MAP_W; x++) {
+      map[0][x] = T_WALL; map[MAP_H - 1][x] = T_WALL;
+    }
+
+    for (let iter = 0; iter < 4; iter++) {
+      const next = map.map(r => [...r]);
+      for (let y = 1; y < MAP_H - 1; y++) {
+        for (let x = 1; x < MAP_W - 1; x++) {
+          let walls = 0;
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++)
+              if (map[y + dy][x + dx] === T_WALL) walls++;
+          next[y][x] = (walls >= 5 || walls === 0) ? T_WALL : T_FLOOR;
+        }
+      }
+      for (let y = 0; y < MAP_H; y++) map[y] = next[y];
+    }
+
+    const visited = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+    const comps = [];
+    for (let y = 1; y < MAP_H - 1; y++) {
+      for (let x = 1; x < MAP_W - 1; x++) {
+        if (map[y][x] === T_FLOOR && !visited[y][x]) {
+          const comp = [];
+          const q = [{x, y}];
+          visited[y][x] = true;
+          while (q.length) {
+            const {x: cx, y: cy} = q.shift();
+            comp.push({x: cx, y: cy});
+            for (const [dx, dy] of DIRS) {
+              const nx = cx + dx, ny = cy + dy;
+              if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H && map[ny][nx] === T_FLOOR && !visited[ny][nx]) {
+                visited[ny][nx] = true;
+                q.push({x: nx, y: ny});
+              }
+            }
+          }
+          comps.push(comp);
+        }
+      }
+    }
+    if (comps.length === 0) continue;
+    comps.sort((a, b) => b.length - a.length);
+    const lcc = comps[0];
+    if (lcc.length < 80) continue;
+
+    const lccSet = new Set(lcc.map(p => `${p.x},${p.y}`));
+    for (let y = 0; y < MAP_H; y++)
+      for (let x = 0; x < MAP_W; x++)
+        if (!lccSet.has(`${x},${y}`)) map[y][x] = T_WALL;
+
+    const topTiles = lcc.filter(p => p.y >= 1 && p.y <= 3);
+    const botTiles = lcc.filter(p => p.y >= MAP_H - 4 && p.y <= MAP_H - 2);
+    if (topTiles.length < 3 || botTiles.length < 3) continue;
+
+    const entrance = pick(topTiles);
+    const exit = pick(botTiles);
+
+    // BFS check entrance -> exit
+    const bfsVis = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+    const bq = [{x: entrance.x, y: entrance.y}];
+    bfsVis[entrance.y][entrance.x] = true;
+    while (bq.length) {
+      const {x, y} = bq.shift();
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H && map[ny][nx] === T_FLOOR && !bfsVis[ny][nx]) {
+          bfsVis[ny][nx] = true;
+          bq.push({x: nx, y: ny});
+        }
+      }
+    }
+    if (!bfsVis[exit.y][exit.x]) continue;
+
+    return { map, entrance, exit, lcc };
+  }
+  // Fallback simple map
+  const map = [];
+  const lcc = [];
+  for (let y = 0; y < MAP_H; y++) {
+    map[y] = [];
+    for (let x = 0; x < MAP_W; x++) {
+      const isWall = (x === 0 || x === MAP_W-1 || y === 0 || y === MAP_H-1);
+      map[y][x] = isWall ? T_WALL : T_FLOOR;
+      if (!isWall) lcc.push({x, y});
+    }
+  }
+  return { map, entrance: {x: Math.floor(MAP_W/2), y: 2}, exit: {x: Math.floor(MAP_W/2), y: MAP_H-3}, lcc };
+}
+
+function placeEntities() {
+  const { map, entrance, exit, lcc } = G.genResult;
+  const floorTiles = lcc.filter(p =>
+    !(p.x === entrance.x && p.y === entrance.y) &&
+    !(p.x === exit.x && p.y === exit.y) &&
+    Math.abs(p.x - entrance.x) + Math.abs(p.y - entrance.y) > 5
+  );
+  shuffle(floorTiles);
+
+  G.airPockets = [];
+  const apCount = randInt(2, 4);
+  for (let i = 0; i < apCount && floorTiles.length > 0; i++) {
+    const t = floorTiles.pop();
+    if (Math.abs(t.x - exit.x) + Math.abs(t.y - exit.y) < 6) continue;
+    G.airPockets.push({ x: t.x, y: t.y });
+  }
+
+  G.enemies = [];
+  const dScale = 1 + (G.depth - 1) * 0.12;
+  const eCount = randInt(3, 6) + Math.floor((G.depth - 1) / 2);
+  for (let i = 0; i < eCount && floorTiles.length > 0; i++) {
+    const t = floorTiles.pop();
+    const eType = pick(E_POOL);
+    const cfg = ECONF[eType];
+    G.enemies.push({
+      type: eType,
+      x: t.x, y: t.y,
+      hp: Math.round(cfg.hp * dScale),
+      maxHp: Math.round(cfg.hp * dScale),
+      attack: Math.round(cfg.atk * dScale),
+      spawnX: t.x, spawnY: t.y,
+    });
+  }
+
+  G.groundItems = [];
+  const itemTypes = ['airTank','medkit','harpoon','glowStone'];
+  const itCount = randInt(2, 4) + Math.floor((G.depth - 1) / 3);
+  for (let i = 0; i < itCount && floorTiles.length > 0; i++) {
+    const t = floorTiles.pop();
+    const itype = pick(itemTypes);
+    G.groundItems.push({ type: itype, x: t.x, y: t.y });
+  }
+  // Extra pearls on ground
+  const pearlCount = randInt(2, 5);
+  for (let i = 0; i < pearlCount && floorTiles.length > 0; i++) {
+    const t = floorTiles.pop();
+    G.groundItems.push({ type: 'pearl', x: t.x, y: t.y });
+  }
+}
+
+function updateVisibility() {
+  G.visible = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+  const q = [{x: G.player.x, y: G.player.y, d: 0}];
+  const visSet = new Set();
+  while (q.length) {
+    const {x, y, d} = q.shift();
+    const k = `${x},${y}`;
+    if (visSet.has(k)) continue;
+    if (d > G.player.lightRadius) continue;
+    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) continue;
+    visSet.add(k);
+    G.visible[y][x] = true;
+    G.explored[y][x] = true;
+    if (G.map[y][x] === T_WALL) continue;
+    for (const [dx, dy] of DIRS) q.push({x: x + dx, y: y + dy, d: d + 1});
+  }
+  // Reveal walls adjacent to visible floor tiles
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      if (G.map[y][x] === T_WALL && !G.visible[y][x]) {
+        for (const [dx, dy] of DIRS) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H && G.visible[ny][nx] && G.map[ny][nx] === T_FLOOR) {
+            G.visible[y][x] = true;
+            G.explored[y][x] = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+function startGame() {
+  G = {
+    screen: 'game',
+    depth: 1,
+    map: [],
+    genResult: null,
+    player: playerBase(),
+    enemies: [],
+    groundItems: [],
+    airPockets: [],
+    explored: Array.from({length: MAP_H}, () => Array(MAP_W).fill(false)),
+    visible: Array.from({length: MAP_H}, () => Array(MAP_W).fill(false)),
+    messages: [],
+    run: { kills: 0, pearls: 0, maxDepth: 1 },
+    meta: loadMeta(),
+  };
+
+  applyStartItems();
+  generateFloor();
+  screen('screen-game');
+  resizeCanvas();
+  render();
+}
+
+function applyStartItems() {
+  if (G.meta.u.tank && G.player.inventory.length < MAX_INV) G.player.inventory.push('airTank');
+  if (G.meta.u.med && G.player.inventory.length < MAX_INV) G.player.inventory.push('medkit');
+}
+
+function generateFloor() {
+  G.genResult = generateMap();
+  G.map = G.genResult.map;
+  G.player.x = G.genResult.entrance.x;
+  G.player.y = G.genResult.entrance.y;
+  G.enemies = [];
+  G.groundItems = [];
+  G.airPockets = [];
+  G.explored = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+  G.visible = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+  placeEntities();
+  updateVisibility();
+}
+
+function processTurn(dx, dy) {
+  if (G.screen !== 'game') return;
+  const p = G.player;
+  const nx = p.x + dx, ny = p.y + dy;
+
+  if (dx === 0 && dy === 0) {
+    // Wait
+    G.player.oxygen = Math.max(0, G.player.oxygen - 1);
+    enemyTurns();
+    checkPlayerState();
+    updateUI();
+    render();
+    return;
+  }
+
+  if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) return;
+  if (G.map[ny][nx] === T_WALL) { addMsg('Стена преграждает путь.'); return; }
+
+  const enemy = enemyAt(nx, ny);
+  if (enemy) {
+    enemy.hp -= p.attack;
+    addMsg(`Вы атакуете ${ECONF[enemy.type].name} (-${p.attack}).`, 'danger');
+    if (enemy.hp <= 0) {
+      G.run.kills++;
+      G.enemies = G.enemies.filter(e => e !== enemy);
+      addMsg(`${ECONF[enemy.type].name} уничтожен!`, 'loot');
+      if (Math.random() < 0.5) {
+        G.run.pearls++;
+        addMsg('Найден жемчуг!', 'loot');
+      }
+    }
+    G.player.oxygen = Math.max(0, G.player.oxygen - 1);
+    enemyTurns();
+    checkPlayerState();
+    updateUI();
+    render();
+    return;
+  }
+
+  // Move player
+  p.x = nx; p.y = ny;
+  p.oxygen = Math.max(0, p.oxygen - 1);
+
+  // Pickup items
+  for (let i = G.groundItems.length - 1; i >= 0; i--) {
+    const it = G.groundItems[i];
+    if (it.x === p.x && it.y === p.y) {
+      if (it.type === 'pearl') {
+        G.run.pearls++;
+        addMsg('Подобран жемчуг.', 'loot');
+      } else if (ICONF[it.type].auto) {
+        const eff = ICONF[it.type].eff;
+        if (eff.attack) { p.attack += eff.attack; addMsg(`Гарпун +${eff.attack} атаки!`, 'loot'); }
+        if (eff.light) { p.lightRadius += eff.light; addMsg(`Свет +${eff.light} радиуса!`, 'loot'); }
+      } else {
+        if (p.inventory.length < MAX_INV) {
+          p.inventory.push(it.type);
+          addMsg(`Подобран предмет: ${ICONF[it.type].name}`, 'loot');
+        } else {
+          addMsg('Инвентарь полон!', 'info');
+          continue;
+        }
+      }
+      G.groundItems.splice(i, 1);
+    }
+  }
+
+  // Air pocket
+  for (let i = G.airPockets.length - 1; i >= 0; i--) {
+    const ap = G.airPockets[i];
+    if (ap.x === p.x && ap.y === p.y) {
+      p.oxygen = Math.min(p.maxOxygen, p.oxygen + 25);
+      addMsg('Воздушный карман! +25 O₂', 'heal');
+      G.airPockets.splice(i, 1);
+    }
+  }
+
+  updateVisibility();
+  enemyTurns();
+  checkPlayerState();
+  updateUI();
+  render();
+}
+
+function enemyTurns() {
+  const p = G.player;
+  for (const e of G.enemies) {
+    const cfg = ECONF[e.type];
+    let moved = false;
+
+    const dist = Math.abs(e.x - p.x) + Math.abs(e.y - p.y);
+
+    if (cfg.vis >= dist) {
+      // Chase player
+      const cands = [];
+      for (const [dx, dy] of DIRS) {
+        const nx = e.x + dx, ny = e.y + dy;
+        if (canMoveTo(nx, ny, e) || (nx === p.x && ny === p.y)) {
+          cands.push({ dx, dy, nx, ny, dist: Math.abs(nx - p.x) + Math.abs(ny - p.y) });
+        }
+      }
+      if (cands.length > 0) {
+        cands.sort((a, b) => a.dist - b.dist);
+        const best = cands[0];
+        if (best.nx === p.x && best.ny === p.y) {
+          p.hp -= e.attack;
+          addMsg(`${cfg.name} атакует вас (-${e.attack})!`, 'danger');
+          moved = true;
+        } else {
+          e.x = best.nx; e.y = best.ny;
+          moved = true;
+        }
+      }
+    } else {
+      // Patrol
+      const cands = [];
+      for (const [dx, dy] of ALL_DIRS) {
+        const nx = e.x + dx, ny = e.y + dy;
+        if (canMoveTo(nx, ny, e) || (nx === p.x && ny === p.y)) {
+          const spawnDist = Math.abs(nx - e.spawnX) + Math.abs(ny - e.spawnY);
+          cands.push({ dx, dy, nx, ny, spawnDist });
+        }
+      }
+      if (cands.length > 0) {
+        cands.sort((a, b) => a.spawnDist - b.spawnDist);
+        const chosen = cands[randInt(0, Math.min(cands.length - 1, 0))]; // usually first (closest to spawn)
+        if (chosen.nx === p.x && chosen.ny === p.y) {
+          p.hp -= e.attack;
+          addMsg(`${cfg.name} задевает вас (-${e.attack})!`, 'danger');
+          moved = true;
+        } else {
+          e.x = chosen.nx; e.y = chosen.ny;
+          moved = true;
+        }
+      }
+    }
+
+    if (moved && e.x === p.x && e.y === p.y && p.hp > 0) {
+      // Already handled above
+    }
+  }
+
+  // Post-movement check: did any enemy end up on player?
+  for (const e of G.enemies) {
+    if (e.x === p.x && e.y === p.y && p.hp > 0) {
+      p.hp -= e.attack;
+      addMsg(`${ECONF[e.type].name} врезается в вас (-${e.attack})!`, 'danger');
+    }
+  }
+}
+
+function checkPlayerState() {
+  const p = G.player;
+  if (p.oxygen <= 0) {
+    p.hp -= 1;
+    addMsg('Нехватка кислорода! -1 HP', 'danger');
+  }
+  p.oxygen = Math.max(0, p.oxygen);
+
+  if (p.hp <= 0) {
+    p.hp = 0;
+    showDeath();
+    return;
+  }
+
+  // Check exit
+  if (G.genResult && p.x === G.genResult.exit.x && p.y === G.genResult.exit.y) {
+    G.depth++;
+    if (G.depth > G.run.maxDepth) G.run.maxDepth = G.depth;
+    p.hp = Math.min(p.maxHp, p.hp + 5);
+    p.oxygen = Math.min(p.maxOxygen, p.oxygen + 30);
+    addMsg(`Спуск на глубину ${G.depth}... (+5 HP, +30 O₂)`, 'heal');
+    generateFloor();
+    resizeCanvas();
+  }
+}
+
+function showDeath() {
+  G.screen = 'death';
+  screen('screen-death');
+  G.meta.pearls += G.run.pearls;
+  saveMeta(G.meta);
+  $('death-stats').innerHTML = `
+    Глубина: <b>${G.run.maxDepth}</b><br>
+    Убито врагов: <b>${G.run.kills}</b><br>
+    Собрано жемчуга: <b>${G.run.pearls} (+${G.run.pearls} всего)</b><br>
+    Всего жемчуга: <b>${G.meta.pearls}</b>
+  `;
+}
+
+function useItem(index) {
+  const p = G.player;
+  if (index < 0 || index >= p.inventory.length) return;
+  const itype = p.inventory[index];
+  const cfg = ICONF[itype];
+  if (!cfg.use) return;
+  if (cfg.use.hp) {
+    const healed = Math.min(cfg.use.hp, p.maxHp - p.hp);
+    p.hp = Math.min(p.maxHp, p.hp + cfg.use.hp);
+    addMsg(`Использовано: ${cfg.name} (+${healed} HP)`, 'heal');
+  }
+  if (cfg.use.oxygen) {
+    const rest = Math.min(cfg.use.oxygen, p.maxOxygen - p.oxygen);
+    p.oxygen = Math.min(p.maxOxygen, p.oxygen + cfg.use.oxygen);
+    addMsg(`Использовано: ${cfg.name} (+${rest} O₂)`, 'heal');
+  }
+  p.inventory.splice(index, 1);
+  updateUI();
+}
+
+function updateUI() {
+  const p = G.player;
+  $('hp-display').textContent = `HP ${p.hp}/${p.maxHp}`;
+  $('o2-display').textContent = `O₂ ${p.oxygen}/${p.maxOxygen}`;
+  $('depth-display').textContent = `Глуб. ${G.depth}`;
+  $('pearl-display').textContent = `Жемчуг ${G.run.pearls}`;
+
+  const slots = $('inv-slots');
+  slots.innerHTML = p.inventory.map((it, i) =>
+    `<div class="inv-slot" onclick="useItem(${i})"><span><span class="key">${i+1}</span>${ICONF[it].name}</span><span style="color:#689;font-size:10px">[E]</span></div>`
+  ).join('');
+  if (p.inventory.length === 0) slots.innerHTML = '<div style="color:#446;font-size:10px">пусто</div>';
+}
+
+// ---- RENDER ----
+function render() {
+  if (!G || G.screen !== 'game') return;
+  const w = MAP_W * TILE, h = MAP_H * TILE;
+  canvas.width = w; canvas.height = h;
+
+  ctx.fillStyle = '#030810';
+  ctx.fillRect(0, 0, w, h);
+
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      const vis = G.visible[y][x];
+      const exp = G.explored[y][x];
+      if (!vis && !exp) continue;
+      const isWall = G.map[y][x] === T_WALL;
+      let col;
+      if (vis) col = isWall ? '#1e3d5c' : '#0f2538';
+      else col = isWall ? '#0e1c2a' : '#07121c';
+      ctx.fillStyle = col;
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+    }
+  }
+
+  // Floor grid lines (visible area)
+  ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+  ctx.lineWidth = 0.5;
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      if (G.visible[y][x] && G.map[y][x] === T_FLOOR) {
+        ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
+      }
+    }
+  }
+
+  // Exit
+  if (G.genResult) {
+    const ex = G.genResult.exit;
+    if (G.explored[ex.y][ex.x]) {
+      const alpha = G.visible[ex.y][ex.x] ? 1 : 0.4;
+      const cx = (ex.x + 0.5) * TILE, cy = (ex.y + 0.5) * TILE;
+      ctx.fillStyle = `rgba(0,255,100,${alpha * 0.3})`;
+      ctx.fillRect(ex.x * TILE, ex.y * TILE, TILE, TILE);
+      ctx.fillStyle = `rgba(0,255,100,${alpha})`;
+      ctx.font = `${Math.max(8, TILE * 0.5)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('▼', cx, cy);
+    }
+  }
+
+  // Air pockets
+  for (const ap of G.airPockets) {
+    if (!G.visible[ap.y][ap.x]) continue;
+    const cx = (ap.x + 0.5) * TILE, cy = (ap.y + 0.5) * TILE;
+    const r = TILE * 0.25;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(100,200,255,0.5)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(150,220,255,0.7)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Ground items
+  for (const it of G.groundItems) {
+    if (!G.visible[it.y][it.x]) continue;
+    const cfg = ICONF[it.type];
+    const cx = (it.x + 0.5) * TILE, cy = (it.y + 0.5) * TILE;
+    const r = TILE * 0.2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = cfg.col;
+    ctx.fill();
+    if (it.type === 'pearl') {
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Enemies
+  for (const e of G.enemies) {
+    if (!G.visible[e.y][e.x]) continue;
+    const cfg = ECONF[e.type];
+    const cx = (e.x + 0.5) * TILE, cy = (e.y + 0.5) * TILE;
+    const r = TILE * (e.type === 'horror' ? 0.4 : 0.32);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = cfg.col;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // HP bar
+    if (e.hp < e.maxHp) {
+      const bw = TILE * 0.5, bh = 3;
+      const by = cy - r - 5;
+      ctx.fillStyle = '#400';
+      ctx.fillRect(cx - bw/2, by, bw, bh);
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(cx - bw/2, by, bw * (e.hp / e.maxHp), bh);
+    }
+
+    // Letter
+    if (TILE >= 12) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.floor(r * 1.2)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cfg.ltr, cx, cy + 1);
+    }
+  }
+
+  // Player
+  const px = (G.player.x + 0.5) * TILE, py = (G.player.y + 0.5) * TILE;
+  const pr = TILE * 0.36;
+
+  // Player glow
+  const glow = ctx.createRadialGradient(px, py, pr * 0.3, px, py, pr * 1.8);
+  glow.addColorStop(0, 'rgba(0,200,255,0.25)');
+  glow.addColorStop(1, 'rgba(0,200,255,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(px, py, pr * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(px, py, pr, 0, Math.PI * 2);
+  ctx.fillStyle = '#0cf';
+  ctx.fill();
+  ctx.strokeStyle = '#def';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Player visor
+  ctx.fillStyle = '#034';
+  ctx.beginPath();
+  ctx.ellipse(px, py - pr * 0.15, pr * 0.5, pr * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function resizeCanvas() {
+  const isDesktop = window.innerWidth > 600;
+  const availW = window.innerWidth - (isDesktop ? 220 : 16);
+  const availH = window.innerHeight - (isDesktop ? 80 : 200);
+  TILE = Math.max(10, Math.min(28, Math.floor(Math.min(availW / MAP_W, availH / MAP_H))));
+  const w = MAP_W * TILE, h = MAP_H * TILE;
+  canvas.width = w; canvas.height = h;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  if (G && G.screen === 'game') render();
+}
+
+// ---- SHOP ----
+function refreshShop() {
+  const m = G ? G.meta : loadMeta();
+  $('shop-pearls').textContent = `Жемчуг: ${m.pearls}`;
+  const upgrades = [
+    { key: 'hp', name: 'HP +5', cost: 5, desc: `Ур.${m.u.hp}`, max: 10 },
+    { key: 'oxygen', name: 'O₂ +20', cost: 5, desc: `Ур.${m.u.oxygen}`, max: 10 },
+    { key: 'attack', name: 'Атака +2', cost: 6, desc: `Ур.${m.u.attack}`, max: 10 },
+    { key: 'light', name: 'Свет +1', cost: 8, desc: `Ур.${m.u.light}`, max: 8 },
+    { key: 'tank', name: 'Старт. баллон O₂', cost: 10, desc: m.u.tank ? 'Куплено' : 'Нет', max: 1, check: () => m.u.tank },
+    { key: 'med', name: 'Старт. аптечка', cost: 10, desc: m.u.med ? 'Куплено' : 'Нет', max: 1, check: () => m.u.med },
+  ];
+
+  $('shop-upgrades').innerHTML = upgrades.map(u => {
+    const owned = u.check ? u.check() : (m.u[u.key] >= u.max);
+    const canBuy = m.pearls >= u.cost && !owned;
+    return `<div class="shop-row">
+      <span class="info">${u.name} <span class="lvl">${u.desc}</span></span>
+      <span class="cost">${u.cost} 💎</span>
+      <button class="btn buy" ${canBuy ? '' : 'disabled'} onclick="buyUpgrade('${u.key}',${u.cost})">
+        ${owned ? '✓' : 'Купить'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function buyUpgrade(key, cost) {
+  const m = G ? G.meta : loadMeta();
+  if (m.pearls < cost) return;
+  m.pearls -= cost;
+  if (key === 'tank') m.u.tank = true;
+  else if (key === 'med') m.u.med = true;
+  else m.u[key] = (m.u[key] || 0) + 1;
+  saveMeta(m);
+  if (G) G.meta = m;
+  refreshShop();
+}
+
+// ---- SCREENS ----
+function showTitle() { screen('screen-title'); G = null; }
+function showShop() {
+  screen('screen-shop');
+  if (!G || (G.screen !== 'death' && G.screen !== 'shop')) {
+    G = { meta: loadMeta(), screen: 'shop' };
+  }
+  refreshShop();
+}
+
+// ---- INPUT ----
+document.addEventListener('keydown', e => {
+  if (G && G.screen === 'game') {
+    switch (e.key) {
+      case 'ArrowUp': case 'w': case 'W': e.preventDefault(); processTurn(0, -1); break;
+      case 'ArrowDown': case 's': case 'S': e.preventDefault(); processTurn(0, 1); break;
+      case 'ArrowLeft': case 'a': case 'A': e.preventDefault(); processTurn(-1, 0); break;
+      case 'ArrowRight': case 'd': case 'D': e.preventDefault(); processTurn(1, 0); break;
+      case ' ': e.preventDefault(); processTurn(0, 0); break;
+      case 'e': case 'E': case 'у': case 'У': e.preventDefault(); useItem(0); break;
+      case '1': e.preventDefault(); useItem(0); break;
+      case '2': e.preventDefault(); useItem(1); break;
+      case '3': e.preventDefault(); useItem(2); break;
+      case '4': e.preventDefault(); useItem(3); break;
+      case '5': e.preventDefault(); useItem(4); break;
+    }
+  }
+});
+
+document.querySelectorAll('.dpad-btn').forEach(btn => {
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const dx = parseInt(btn.dataset.dx), dy = parseInt(btn.dataset.dy);
+    processTurn(dx, dy);
+  });
+});
+
+$('btn-new-game').addEventListener('click', startGame);
+$('btn-shop').addEventListener('click', showShop);
+$('btn-death-shop').addEventListener('click', showShop);
+$('btn-death-retry').addEventListener('click', startGame);
+$('btn-death-title').addEventListener('click', showTitle);
+$('btn-shop-dive').addEventListener('click', startGame);
+$('btn-shop-back').addEventListener('click', showTitle);
+
+window.addEventListener('resize', resizeCanvas);
+
+// ---- INIT ----
+G = { screen: 'title', meta: loadMeta() };
+resizeCanvas();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+</script>
+</body>
+</html>
